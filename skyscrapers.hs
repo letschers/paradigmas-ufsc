@@ -1,4 +1,4 @@
--- Resolvedor do puzzle Wolkenkratzer (Skyscrapers / Arranha-céus)
+-- Wolkenkratzer (Skyscrapers) solver
 -- https://www.janko.at/Raetsel/Wolkenkratzer/index.htm
 --
 -- Regras do puzzle:
@@ -10,7 +10,7 @@
 --   * Algumas pistas podem estar ausentes e algumas células podem já vir
 --     preenchidas no enunciado.
 --
--- Estratégia (tentativa e erro / backtracking, linha por linha):
+-- Estratégia escolhida (backtracking):
 --   1. Para cada linha, calculamos de antemão todas as ordenações de 1..n
 --      que satisfazem as pistas da esquerda e da direita daquela linha
 --      (e as células já dadas). Essas são as candidatas da linha.
@@ -33,13 +33,13 @@ import Data.List ((\\))
 -- Modelagem do tabuleiro
 ------------------------------------------------------------------------
 
--- Uma grade é uma lista de linhas; cada linha é uma lista de alturas.
--- Quando a grade representa as células dadas no enunciado, 0 significa
+-- uma grade é uma lista de linhas; cada linha é uma lista de alturas.
+-- quando a grade representa as células dadas no enunciado, 0 significa
 -- "célula vazia".
 type Grid = [[Int]]
 
--- As pistas nas bordas, nesta ordem: topo, base, esquerda, direita.
--- Topo e base são lidas da esquerda para a direita; esquerda e direita são
+-- as pistas nas bordas, nesta ordem: topo, base, esquerda, direita.
+-- topo e base são lidas da esquerda para a direita; esquerda e direita são
 -- lidas de cima para baixo. Uma pista igual a 0 significa "não informada"
 data Clues = Clues [Int] [Int] [Int] [Int]
 
@@ -47,8 +47,7 @@ data Clues = Clues [Int] [Int] [Int] [Int]
 -- Programa principal
 ------------------------------------------------------------------------
 
--- Resolve os tabuleiros de exemplo e confere
--- cada resposta com a solução publicada no site
+-- resolve os tabuleiros de exemplo e confere as respostas
 main :: IO ()
 main = do
   run "janko.at 5x5 (12 de 20 pistas)" puzzle5 (emptyGrid 5) solution5
@@ -60,13 +59,13 @@ main = do
 -- Visibilidade
 ------------------------------------------------------------------------
 
--- Quantos prédios são vistos olhando ao longo da lista, a partir do início.
--- Um prédio é visto quando é mais alto do que todos os que vêm antes dele.
--- Exemplos: visible [2,1,4,3] = 2 (o 2 e o 4); visible [4,3,2,1] = 1
+-- quantos prédios são vistos olhando ao longo da lista, a partir do início.
+-- um prédio é visto quando é mais alto do que todos os que vêm antes dele.
+-- ex: visible [2,1,4,3] = 2 (o 2 e o 4); visible [4,3,2,1] = 1
 visible :: [Int] -> Int
 visible line = visibleAfter 0 line
 
--- Igual à anterior, mas supondo que um prédio de altura `tallest` já está
+-- igual à anterior, mas supondo que um prédio de altura `tallest` já está
 -- na frente. Começamos com 0 para que o primeiro prédio seja sempre visto
 visibleAfter :: Int -> [Int] -> Int
 visibleAfter _ [] = 0
@@ -74,8 +73,8 @@ visibleAfter tallest (h : hs)
   | h > tallest = 1 + visibleAfter h hs -- mais alto que tudo antes: conta
   | otherwise = visibleAfter tallest hs -- escondido: não conta
 
--- Uma linha satisfaz uma pista? Uma pista 0 (não informada) aceita tudo
--- A equação com 0 precisa vir primeiro, pois as equações são testadas em ordem
+-- uma linha satisfaz uma pista? Uma pista 0 (não informada) aceita tudo
+-- a equação com 0 precisa vir primeiro, pois as equações são testadas em ordem
 matches :: Int -> [Int] -> Bool
 matches 0 _ = True
 matches clue line = visible line == clue
@@ -84,8 +83,8 @@ matches clue line = visible line == clue
 -- Linhas candidatas
 ------------------------------------------------------------------------
 
--- Todas as ordenações (permutações) de uma lista
--- Para [1,2,3] são 6; para [1..6] são 720
+-- todas as ordenações (permutações) de uma lista
+-- por ex, para [1,2,3] são 6; para [1..6] são 720
 -- list comprehension: escolha um elemento x qualquer, depois qualquer
 -- ordenação `rest` do que sobrou (xs \\ [x] remove uma ocorrência de x),
 -- e coloque x na frente
@@ -94,7 +93,7 @@ perms :: [Int] -> [[Int]]
 perms [] = [[]]
 perms xs = [x : rest | x <- xs, rest <- perms (xs \\ [x])]
 
--- Todas as ordenações de 1..n que satisfazem a pista da frente e a pista
+-- todas as ordenações de 1..n que satisfazem a pista da frente e a pista
 -- de trás. A pista de trás é testada sobre a lista invertida, porque é isso
 -- que se vê entrando pelo outro lado
 -- Serve tanto para linhas (esquerda, direita) quanto para colunas (topo, base)
@@ -102,7 +101,7 @@ lineOptions :: Int -> Int -> Int -> [[Int]]
 lineOptions n front back =
   [p | p <- perms [1 .. n], matches front p, matches back (reverse p)]
 
--- Uma linha candidata respeita as células dadas no enunciado quando, em
+-- uma linha candidata respeita as células dadas no enunciado quando, em
 -- cada posição dada (diferente de 0), a altura coincide
 fitsGivens :: [Int] -> [Int] -> Bool
 fitsGivens [] _ = True
@@ -113,7 +112,7 @@ fitsGivens (g : gs) (x : xs) = (g == 0 || g == x) && fitsGivens gs xs
 -- Colunas
 ------------------------------------------------------------------------
 
--- A coluna c das linhas já colocadas, de cima para baixo
+-- a coluna c das linhas já colocadas, de cima para baixo
 column :: Grid -> Int -> [Int]
 column rows c = [row !! c | row <- rows]
 
@@ -125,14 +124,14 @@ isPrefix [] _ = True
 isPrefix _ [] = False
 isPrefix (x : xs) (y : ys) = x == y && isPrefix xs ys
 
--- A coluna parcial ainda pode virar uma das colunas válidas?
--- Basta existir uma opção que comece com o que já foi colocado.
--- Quando a coluna está completa, "começar com" vira "ser igual a", ou seja,
+-- a coluna parcial ainda pode virar uma das colunas válidas?
+-- basta existir uma opção que comece com o que já foi colocado.
+-- quando a coluna está completa, "começar com" vira "ser igual a", ou seja,
 -- a verificação passa a ser exata
 stillPossible :: [[Int]] -> [Int] -> Bool
 stillPossible options partial = [o | o <- options, isPrefix partial o] /= []
 
--- Todos os valores da lista são True? (o && para na primeira False)
+-- todos os valores da lista são True? (o && para na primeira False)
 allTrue :: [Bool] -> Bool
 allTrue [] = True
 allTrue (b : bs) = b && allTrue bs
@@ -141,8 +140,8 @@ allTrue (b : bs) = b && allTrue bs
 -- Busca (backtracking)
 ------------------------------------------------------------------------
 
--- O primeiro Just de uma lista, ou Nothing se não houver nenhum
--- Como são lazy as listas em Haskell, os elementos depois do
+-- o primeiro Just de uma lista, ou Nothing se não houver nenhum
+-- como as listas em haskell são lazy, os elementos depois do
 -- primeiro Just nunca chegam a ser calculados: a busca para na primeira
 -- solução encontrada sem precisar de uma forma explícita de parada
 firstJust :: [Maybe a] -> Maybe a
@@ -150,14 +149,14 @@ firstJust [] = Nothing
 firstJust (Just x : _) = Just x
 firstJust (Nothing : rest) = firstJust rest
 
--- Resolve o puzzle: recebe as pistas e a grade de células dadas (0 = vazia)
+-- resolve o puzzle: recebe as pistas e a grade de células dadas (0 = vazia)
 -- e devolve Just grade se encontrou solução, ou Nothing se não existe
 --
 --   rowOpts: para cada linha, as ordenações permitidas pelas suas pistas
 --            (esquerda e direita) e pelas células dadas naquela linha
 --   colOpts: para cada coluna, as ordenações permitidas pelas suas pistas
 --            (topo e base)
---   Ambas são calculadas uma única vez (estão no `where` de solve) e
+--   ambas são calculadas uma única vez (no `where` do solve) e
 --   compartilhadas por todas as chamadas de `go`
 --
 --   go:        recebe as linhas já colocadas e as listas de candidatas das
@@ -199,7 +198,6 @@ solve (Clues top bottom left right) givens = go [] rowOpts
 ------------------------------------------------------------------------
 
 -- resolve um tabuleiro, printa o resultado e confere com a solução
--- publicada no site
 run :: String -> Clues -> Grid -> Grid -> IO ()
 run name clues givens expected = do
   putStrLn ("== " ++ name)
@@ -215,8 +213,8 @@ printResult (Just grid) expected = do
     then putStrLn "confere com a solucao publicada"
     else putStrLn "DIFERENTE da solucao publicada"
 
--- recursão sobre a lista de linhas dentro de IO. `return ()` é a ação que
--- não faz nada, necessária porque toda equação precisa devolver um IO ().
+-- recursão sobre a lista de linhas dentro de IO. `return ()` 
+-- não faz nada, mas é necessário pq toda equação precisa devolver um IO ()
 printRows :: Grid -> IO ()
 printRows [] = return ()
 printRows (row : rows) = do
@@ -227,7 +225,7 @@ printRows (row : rows) = do
 -- Tabuleiros de exemplo
 ------------------------------------------------------------------------
 
--- Grade n x n sem nenhuma célula dada
+-- grade n x n sem nenhuma célula dada
 emptyGrid :: Int -> Grid
 emptyGrid n = [[0 | _ <- [1 .. n]] | _ <- [1 .. n]]
 
